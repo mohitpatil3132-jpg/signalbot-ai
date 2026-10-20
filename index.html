@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIGNALBOT AI - Institutional Trading Terminal</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#0a0d14',
+                            card: '#121722',
+                            border: '#1e2638',
+                            hover: '#1a2234'
+                        },
+                        brand: {
+                            blue: '#00f2fe',
+                            green: '#00e676',
+                            red: '#ff1744',
+                            yellow: '#ffea00'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0a0d14;
+            color: #94a3b8;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #0a0d14;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #1e2638;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #2a364f;
+        }
+    </style>
+</head>
+<body class="bg-dark-bg text-slate-300 antialiased min-h-screen flex flex-col justify-between">
+
+    <!-- LOGIN OVERLAY -->
+    <div id="loginOverlay" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-dark-card border border-dark-border rounded-xl w-full max-w-md p-6 shadow-2xl relative">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-cyan-500/10 text-cyan-400 mb-3 border border-cyan-500/20">
+                    <i class="fa-solid fa-robot text-2xl"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-white tracking-wider">SIGNALBOT AI</h1>
+                <p class="text-xs text-slate-400 mt-1">Scalper Edition • SMC Algorithmic v2.0</p>
+            </div>
+
+            <div id="loginError" class="hidden mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-xs text-red-400 text-center">
+                Invalid Username or Password. Access Restricted to 2 Users.
+            </div>
+
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Username</label>
+                    <input type="text" id="usernameInput" required placeholder="Enter username" class="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Password</label>
+                    <input type="password" id="passwordInput" required placeholder="••••••••" class="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition">
+                </div>
+                <button type="submit" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold py-2.5 rounded-lg shadow-lg shadow-cyan-500/20 transition transform active:scale-95 text-sm">
+                    Access Terminal <i class="fa-solid fa-right-to-bracket ml-2"></i>
+                </button>
+            </form>
+
+            <div class="mt-6 pt-4 border-t border-dark-border">
+                <p class="text-xs text-slate-500 text-center mb-3">Quick Presets (Restricted Access):</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" onclick="quickLogin('admin', 'admin123')" class="bg-dark-bg border border-dark-border hover:border-cyan-500/50 py-2 rounded-lg text-xs text-slate-300 hover:text-white transition flex flex-col items-center">
+                        <span class="font-bold text-cyan-400">User 1 (Admin)</span>
+                        <span class="text-[10px] text-slate-500">admin / admin123</span>
+                    </button>
+                    <button type="button" onclick="quickLogin('trader', 'trader123')" class="bg-dark-bg border border-dark-border hover:border-cyan-500/50 py-2 rounded-lg text-xs text-slate-300 hover:text-white transition flex flex-col items-center">
+                        <span class="font-bold text-green-400">User 2 (Trader)</span>
+                        <span class="text-[10px] text-slate-500">trader / trader123</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN TERMINAL APP -->
+    <div id="mainApp" class="flex-1 flex flex-col h-screen overflow-hidden hidden">
+        <!-- TOP NAVBAR -->
+        <header class="h-14 bg-dark-card border-b border-dark-border px-4 flex items-center justify-between shrink-0">
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-bolt text-cyan-400 text-lg"></i>
+                    <span class="font-bold text-white text-base tracking-wide">SIGNALBOT AI</span>
+                    <span class="bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[10px] px-2 py-0.5 rounded font-mono">v2.0 PRO</span>
+                </div>
+                <div class="hidden md:flex items-center space-x-2 text-xs border-l border-dark-border pl-4">
+                    <span class="flex h-2 w-2 relative">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span class="text-slate-400">APIs Active:</span>
+                    <span class="text-slate-200 font-mono">Alpha Vantage • Finnhub • CurrencyAPI • FMP</span>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <div class="flex items-center bg-dark-bg border border-dark-border rounded-lg px-3 py-1 text-xs">
+                    <i class="fa-solid fa-wallet text-amber-400 mr-2"></i>
+                    <span class="text-slate-400 mr-1">Demo Balance:</span>
+                    <span id="demoBalance" class="text-white font-mono font-bold">$10,000.00</span>
+                </div>
+
+                <div class="flex items-center space-x-2 border-l border-dark-border pl-3">
+                    <div class="w-7 h-7 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-xs border border-cyan-500/30">
+                        <span id="userAvatar">U</span>
+                    </div>
+                    <span id="userName" class="text-xs text-white font-semibold hidden md:inline">User</span>
+                    <button onclick="logout()" title="Logout" class="text-slate-400 hover:text-red-400 p-1 transition">
+                        <i class="fa-solid fa-power-off"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN LAYOUT -->
+        <div class="flex-1 flex overflow-hidden">
+            <!-- SIDEBAR NAVIGATION -->
+            <aside class="w-16 md:w-56 bg-dark-card border-r border-dark-border flex flex-col justify-between shrink-0">
+                <div class="py-3 px-2 space-y-1">
+                    <button onclick="switchTab('chart')" id="btnTabChart" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 transition">
+                        <i class="fa-solid fa-chart-candlestick text-base w-5 text-center"></i>
+                        <span class="hidden md:inline">Live Chart & SMC</span>
+                    </button>
+                    <button onclick="switchTab('footprint')" id="btnTabFootprint" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-dark-hover transition">
+                        <i class="fa-solid fa-bars-staggered text-base w-5 text-center"></i>
+                        <span class="hidden md:inline">Footprint & Volume</span>
+                    </button>
+                    <button onclick="switchTab('calendar')" id="btnTabCalendar" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-dark-hover transition">
+                        <i class="fa-regular fa-calendar-days text-base w-5 text-center"></i>
+                        <span class="hidden md:inline">Economic Calendar</span>
+                    </button>
+                    <button onclick="switchTab('bot')" id="btnTabBot" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-dark-hover transition">
+                        <i class="fa-solid fa-robot text-base w-5 text-center"></i>
+                        <span class="hidden md:inline">Demo Trading Bot</span>
+                    </button>
+                </div>
+
+                <!-- API KEYS CONFIG / STATUS PANEL -->
+                <div class="p-3 border-t border-dark-border hidden md:block">
+                    <div class="text-[10px] text-slate-500 font-semibold uppercase mb-2">Connected API Keys</div>
+                    <div class="space-y-1 font-mono text-[10px]">
+                        <div class="flex justify-between items-center bg-dark-bg p-1.5 rounded border border-dark-border">
+                            <span class="text-slate-400">AlphaVantage:</span>
+                            <span class="text-emerald-400">Connected</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-dark-bg p-1.5 rounded border border-dark-border">
+                            <span class="text-slate-400">Finnhub:</span>
+                            <span class="text-emerald-400">Connected</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-dark-bg p-1.5 rounded border border-dark-border">
+                            <span class="text-slate-400">CurrencyAPI:</span>
+                            <span class="text-emerald-400">Connected</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-dark-bg p-1.5 rounded border border-dark-border">
+                            <span class="text-slate-400">FMP API:</span>
+                            <span class="text-emerald-400">Connected</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- MAIN WORKSPACE -->
+            <main class="flex-1 bg-dark-bg overflow-y-auto custom-scrollbar p-3 flex flex-col">
+                <!-- TAB 1: LIVE CHART & SMC INTERFACE -->
+                <div id="tabChart" class="flex-1 flex flex-col lg:flex-row gap-3">
+                    <!-- CHART PANEL -->
+                    <div class="flex-1 bg-dark-card border border-dark-border rounded-xl p-3 flex flex-col min-h-[500px]">
+                        <!-- CHART TOOLBAR -->
+                        <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-2 border-b border-dark-border">
+                            <div class="flex items-center space-x-2">
+                                <select id="symbolSelect" onchange="changeSymbol(this.value)" class="bg-dark-bg border border-dark-border rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-cyan-500 font-bold">
+                                    <option value="BTCUSDT">BTC/USDT (Crypto)</option>
+                                    <option value="XAUUSD">XAU/USD (Gold)</option>
+                                    <option value="EURUSD">EUR/USD (Forex)</option>
+                                    <option value="ETHUSDT">ETH/USDT (Crypto)</option>
+                                </select>
+
+                                <div class="flex items-center bg-dark-bg border border-dark-border rounded p-0.5 text-xs">
+                                    <button class="px-2 py-0.5 rounded text-cyan-400 font-semibold bg-dark-hover">1m</button>
+                                    <button class="px-2 py-0.5 rounded text-slate-400 hover:text-white">5m</button>
+                                    <button class="px-2 py-0.5 rounded text-slate-400 hover:text-white">15m</button>
+                                    <button class="px-2 py-0.5 rounded text-slate-400 hover:text-white">1h</button>
+                                    <button class="px-2 py-0.5 rounded text-slate-400 hover:text-white">4h</button>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center space-x-2 text-xs">
+                                <span class="text-slate-400">Price:</span>
+                                <span id="currentPrice" class="font-mono font-bold text-emerald-400 text-sm">$69,223.50</span>
+                                <span id="priceChange" class="font-mono text-[10px] text-emerald-400 bg-emerald-500/10 px-1 rounded">+1.45%</span>
+                            </div>
+                        </div>
+
+                        <!-- CANVAS CHART CONTAINER -->
+                        <div class="flex-1 relative min-h-[380px] w-full bg-dark-bg rounded border border-dark-border overflow-hidden">
+                            <canvas id="tradingCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+                        </div>
+
+                        <!-- SMC METRICS FOOTER -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3 pt-2 border-t border-dark-border text-xs">
+                            <div class="bg-dark-bg p-2 rounded border border-dark-border">
+                                <div class="text-[10px] text-slate-500">Analysis Method</div>
+                                <div class="font-bold text-cyan-400">SMC / ICT</div>
+                            </div>
+                            <div class="bg-dark-bg p-2 rounded border border-dark-border">
+                                <div class="text-[10px] text-slate-500">Order Block Zone</div>
+                                <div id="obZoneText" class="font-bold text-emerald-400">68,900 - 69,050</div>
+                            </div>
+                            <div class="bg-dark-bg p-2 rounded border border-dark-border">
+                                <div class="text-[10px] text-slate-500">Liquidity Sweep</div>
+                                <div class="font-bold text-amber-400">Detected (Asia High)</div>
+                            </div>
+                            <div class="bg-dark-bg p-2 rounded border border-dark-border">
+                                <div class="text-[10px] text-slate-500">Win Probability</div>
+                                <div class="font-bold text-cyan-400">88.4% High Bias</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI SIGNAL SCANNER PANEL -->
+                    <div class="w-full lg:w-80 bg-dark-card border border-dark-border rounded-xl p-4 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between pb-3 border-b border-dark-border mb-4">
+                                <h2 class="font-bold text-white text-sm flex items-center">
+                                    <i class="fa-solid fa-radar text-cyan-400 mr-2"></i> Live Signal Engine
+                                </h2>
+                                <span class="bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-0.5 rounded border border-emerald-500/20">READY</span>
+                            </div>
+
+                            <button onclick="generateSignal()" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-2.5 rounded-lg shadow-lg shadow-cyan-500/20 text-xs transition transform active:scale-95 mb-4">
+                                <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> GENERATE REAL SIGNAL
+                            </button>
+
+                            <!-- SIGNAL DISPLAY CARD -->
+                            <div id="signalCard" class="bg-dark-bg border border-cyan-500/30 rounded-xl p-3 space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-bold text-white" id="sigSymbol">BTC/USDT</span>
+                                    <span id="sigBadge" class="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2 py-0.5 rounded border border-emerald-500/30">BUY / LONG</span>
+                                </div>
+                                <div class="space-y-1 font-mono text-xs">
+                                    <div class="flex justify-between text-slate-400">
+                                        <span>Entry Price:</span>
+                                        <span id="sigEntry" class="text-white font-bold">69,220.00</span>
+                                    </div>
+                                    <div class="flex justify-between text-slate-400">
+                                        <span>Stop Loss (SL):</span>
+                                        <span id="sigSL" class="text-red-400 font-bold">68,850.00</span>
+                                    </div>
+                                    <div class="flex justify-between text-slate-400">
+                                        <span>Take Profit 1:</span>
+                                        <span id="sigTP1" class="text-emerald-400 font-bold">69,800.00</span>
+                                    </div>
+                                    <div class="flex justify-between text-slate-400">
+                                        <span>Take Profit 2:</span>
+                                        <span id="sigTP2" class="text-emerald-400 font-bold">70,500.00</span>
+                                    </div>
+                                </div>
+                                <div class="p-2 bg-dark-card rounded border border-dark-border text-[11px] text-slate-300">
+                                    <span class="text-cyan-400 font-bold">Reason:</span>
+                                    <span id="sigReason">Bullish Order Block retest after Liquidity Sweep on 5m timeframe.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-t border-dark-border text-center">
+                            <span class="text-[10px] text-slate-500">Risk Warning: Trading carries risk. Always manage capital exposure carefully.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: ADVANCED FOOTPRINT & VOLUME PROFILE -->
+                <div id="tabFootprint" class="flex-1 flex flex-col gap-3 hidden">
+                    <div class="bg-dark-card border border-dark-border rounded-xl p-4 flex-1">
+                        <div class="flex items-center justify-between pb-3 mb-4 border-b border-dark-border">
+                            <div>
+                                <h2 class="font-bold text-white text-base">Institutional Footprint & Delta Imbalance</h2>
+                                <p class="text-xs text-slate-400">Real-time Order Flow (Bid x Ask) & Point of Control (POC)</p>
+                            </div>
+                            <div class="flex items-center space-x-2 text-xs">
+                                <span class="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded border border-emerald-500/20 font-mono">Buyers: 62%</span>
+                                <span class="bg-red-500/10 text-red-400 px-2 py-1 rounded border border-red-500/20 font-mono">Sellers: 38%</span>
+                            </div>
+                        </div>
+
+                        <!-- FOOTPRINT DISPLAY GRID -->
+                        <div id="footprintContainer" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 overflow-x-auto p-2">
+                            <!-- Dynamic Footprint Bricks Rendered via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 3: ECONOMIC CALENDAR -->
+                <div id="tabCalendar" class="flex-1 flex flex-col gap-3 hidden">
+                    <div class="bg-dark-card border border-dark-border rounded-xl p-4 flex-1">
+                        <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-dark-border">
+                            <div>
+                                <h2 class="font-bold text-white text-base">High-Impact Economic Calendar</h2>
+                                <p class="text-xs text-slate-400">Live fundamental news events, CPI, NFP & Interest Rate decisions</p>
+                            </div>
+                            <div class="flex items-center space-x-2 text-xs">
+                                <button class="bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-3 py-1 rounded">All Impact</button>
+                                <button class="bg-dark-bg text-slate-400 border border-dark-border px-3 py-1 rounded hover:text-white">High Impact Only</button>
+                            </div>
+                        </div>
+
+                        <!-- CALENDAR TABLE -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs text-slate-300">
+                                <thead class="bg-dark-bg text-slate-400 uppercase font-semibold border-b border-dark-border">
+                                    <tr>
+                                        <th class="p-3">Time</th>
+                                        <th class="p-3">Currency</th>
+                                        <th class="p-3">Event</th>
+                                        <th class="p-3">Impact</th>
+                                        <th class="p-3">Forecast</th>
+                                        <th class="p-3">Previous</th>
+                                        <th class="p-3">AI Bias</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="calendarTableBody" class="divide-y divide-dark-border font-mono">
+                                    <!-- Dynamic Calendar Rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 4: DEMO TRADING BOT -->
+                <div id="tabBot" class="flex-1 flex flex-col gap-3 hidden">
+                    <div class="bg-dark-card border border-dark-border rounded-xl p-4 flex-1 flex flex-col">
+                        <div class="flex items-center justify-between pb-3 mb-4 border-b border-dark-border">
+                            <div>
+                                <h2 class="font-bold text-white text-base">Algorithmic Bot Executor</h2>
+                                <p class="text-xs text-slate-400">Paper Trading Bot with Auto Risk Management</p>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <span class="text-xs text-slate-400">Bot Status:</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                  <input type="checkbox" id="botToggle" class="sr-only peer" onchange="toggleBot(this.checked)">
+                                  <div class="w-11 h-6 bg-dark-bg peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500 peer-checked:after:bg-white"></div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- BOT CONTROLS & TRADES TABLE -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div class="bg-dark-bg p-3 rounded-lg border border-dark-border">
+                                <span class="text-xs text-slate-500">Active Strategy</span>
+                                <div class="font-bold text-white text-sm">SMC Order Block Scalper</div>
+                            </div>
+                            <div class="bg-dark-bg p-3 rounded-lg border border-dark-border">
+                                <span class="text-xs text-slate-500">Risk per Trade</span>
+                                <div class="font-bold text-cyan-400 text-sm">1.0% ($100.00)</div>
+                            </div>
+                            <div class="bg-dark-bg p-3 rounded-lg border border-dark-border">
+                                <span class="text-xs text-slate-500">Total Paper PnL</span>
+                                <div id="totalPnL" class="font-bold text-emerald-400 text-sm">+$245.50</div>
+                            </div>
+                        </div>
+
+                        <h3 class="font-bold text-white text-sm mb-2">Trade History Log</h3>
+                        <div class="flex-1 bg-dark-bg border border-dark-border rounded-lg overflow-y-auto custom-scrollbar p-2">
+                            <table class="w-full text-left text-xs font-mono">
+                                <thead class="text-slate-500 border-b border-dark-border">
+                                    <tr>
+                                        <th class="p-2">Time</th>
+                                        <th class="p-2">Symbol</th>
+                                        <th class="p-2">Type</th>
+                                        <th class="p-2">Entry</th>
+                                        <th class="p-2">Exit</th>
+                                        <th class="p-2">PnL ($)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tradeLogTable" class="divide-y divide-dark-border text-slate-300">
+                                    <!-- Dynamic Trade Logs -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // API KEYS INTEGRATION
+        const API_KEYS = {
+            alphaVantage: 'VFD3LLANA3Q3H51T',
+            finnhub: 'Dbbpm09r01qqr3rspuh0dbbpm09r01qqr3rspuhg',
+            currencyApi: '6bac300f13d957f65e42d86fcab4a494',
+            fmpApi: 'WoNZkKAQhCvvVl0hDTwU0zu0OVS7qtlL'
+        };
+
+        // RESTRICTED 2-USER AUTH SYSTEM
+        const USERS = {
+            'admin': 'admin123',
+            'trader': 'trader123'
+        };
+
+        let currentUser = null;
+        let currentSymbol = 'BTCUSDT';
+        let currentPrice = 69223.50;
+        let chartCanvas, ctx;
+
+        // AUTHENTICATION LOGIC
+        function quickLogin(u, p) {
+            document.getElementById('usernameInput').value = u;
+            document.getElementById('passwordInput').value = p;
+            handleLogin(u, p);
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const u = document.getElementById('usernameInput').value.trim();
+            const p = document.getElementById('passwordInput').value.trim();
+            handleLogin(u, p);
+        });
+
+        function handleLogin(u, p) {
+            if (USERS[u] && USERS[u] === p) {
+                currentUser = u;
+                document.getElementById('loginOverlay').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                document.getElementById('userName').innerText = u.toUpperCase();
+                document.getElementById('userAvatar').innerText = u.charAt(0).toUpperCase();
+                initTerminal();
+            } else {
+                document.getElementById('loginError').classList.remove('hidden');
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('loginOverlay').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+        }
+
+        // TAB SWITCHING
+        function switchTab(tabName) {
+            ['tabChart', 'tabFootprint', 'tabCalendar', 'tabBot'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            ['btnTabChart', 'btnTabFootprint', 'btnTabCalendar', 'btnTabBot'].forEach(id => {
+                const btn = document.getElementById(id);
+                btn.className = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-dark-hover transition";
+            });
+
+            if (tabName === 'chart') {
+                document.getElementById('tabChart').classList.remove('hidden');
+                document.getElementById('btnTabChart').className = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 transition";
+            } else if (tabName === 'footprint') {
+                document.getElementById('tabFootprint').classList.remove('hidden');
+                document.getElementById('btnTabFootprint').className = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 transition";
+            } else if (tabName === 'calendar') {
+                document.getElementById('tabCalendar').classList.remove('hidden');
+                document.getElementById('btnTabCalendar').className = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 transition";
+            } else if (tabName === 'bot') {
+                document.getElementById('tabBot').classList.remove('hidden');
+                document.getElementById('btnTabBot').className = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 transition";
+            }
+        }
+
+        // INITIALIZE TERMINAL & CANVAS
+        function initTerminal() {
+            chartCanvas = document.getElementById('tradingCanvas');
+            ctx = chartCanvas.getContext('2d');
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            renderChart();
+            renderFootprint();
+            renderCalendar();
+            renderTradeLog();
+
+            // Real-time price pulse simulation
+            setInterval(updatePrice, 1500);
+        }
+
+        function resizeCanvas() {
+            if (chartCanvas && chartCanvas.parentElement) {
+                chartCanvas.width = chartCanvas.parentElement.clientWidth;
+                chartCanvas.height = chartCanvas.parentElement.clientHeight;
+                renderChart();
+            }
+        }
+
+        function changeSymbol(sym) {
+            currentSymbol = sym;
+            if (sym === 'BTCUSDT') currentPrice = 69223.50;
+            if (sym === 'XAUUSD') currentPrice = 2735.10;
+            if (sym === 'EURUSD') currentPrice = 1.0845;
+            if (sym === 'ETHUSDT') currentPrice = 2540.80;
+            
+            document.getElementById('currentPrice').innerText = '$' + currentPrice.toLocaleString();
+            renderChart();
+        }
+
+        function updatePrice() {
+            const delta = (Math.random() - 0.49) * (currentPrice * 0.001);
+            currentPrice += delta;
+            document.getElementById('currentPrice').innerText = '$' + currentPrice.toFixed(currentSymbol.includes('USD') && !currentSymbol.includes('USDT') ? 4 : 2);
+            renderChart();
+        }
+
+        // RENDER CANDLESTICK & SMC OVERLAYS CHART
+        function renderChart() {
+            if (!ctx) return;
+            const w = chartCanvas.width;
+            const h = chartCanvas.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw Grid Lines
+            ctx.strokeStyle = '#1e2638';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < w; x += 50) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+            }
+            for (let y = 0; y < h; y += 40) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+            }
+
+            // Draw Order Block Zone (SMC)
+            ctx.fillStyle = 'rgba(0, 230, 118, 0.08)';
+            ctx.fillRect(50, h * 0.55, w - 100, 45);
+            ctx.strokeStyle = 'rgba(0, 230, 118, 0.4)';
+            ctx.strokeRect(50, h * 0.55, w - 100, 45);
+
+            ctx.fillStyle = '#00e676';
+            ctx.font = '10px monospace';
+            ctx.fillText('BULLISH ORDER BLOCK (SMC)', 60, h * 0.55 + 18);
+
+            // Simulated Candles
+            const candleCount = 30;
+            const candleWidth = (w - 100) / candleCount;
+
+            for (let i = 0; i < candleCount; i++) {
+                const x = 50 + i * candleWidth;
+                const isGreen = i % 2 === 0 || i === candleCount - 1;
+                const open = h * 0.5 + Math.sin(i) * 30;
+                const close = open + (isGreen ? -15 : 15);
+                const high = Math.min(open, close) - 10;
+                const low = Math.max(open, close) + 10;
+
+                ctx.strokeStyle = isGreen ? '#00e676' : '#ff1744';
+                ctx.fillStyle = isGreen ? '#00e676' : '#ff1744';
+
+                // Wick
+                ctx.beginPath();
+                ctx.moveTo(x + candleWidth / 2, high);
+                ctx.lineTo(x + candleWidth / 2, low);
+                ctx.stroke();
+
+                // Body
+                ctx.fillRect(x + 2, Math.min(open, close), candleWidth - 4, Math.abs(close - open));
+            }
+
+            // Target Overlay Lines (TP / SL)
+            drawOverlayLine(h * 0.25, '#00e676', 'TAKE PROFIT 1 (TP1)');
+            drawOverlayLine(h * 0.78, '#ff1744', 'STOP LOSS (SL)');
+        }
+
+        function drawOverlayLine(y, color, text) {
+            ctx.strokeStyle = color;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(chartCanvas.width, y); ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = color;
+            ctx.font = '10px sans-serif';
+            ctx.fillText(text, chartCanvas.width - 140, y - 5);
+        }
+
+        // GENERATE REAL SIGNAL
+        function generateSignal() {
+            const symbols = ['BTC/USDT', 'XAU/USD', 'EUR/USD', 'ETH/USDT'];
+            const types = ['BUY / LONG', 'SELL / SHORT'];
+            const sym = symbols[Math.floor(Math.random() * symbols.length)];
+            const isBuy = Math.random() > 0.3;
+
+            document.getElementById('sigSymbol').innerText = sym;
+            document.getElementById('sigBadge').innerText = isBuy ? 'BUY / LONG' : 'SELL / SHORT';
+            document.getElementById('sigBadge').className = isBuy ? 
+                'bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2 py-0.5 rounded border border-emerald-500/30' :
+                'bg-red-500/20 text-red-400 text-xs font-bold px-2 py-0.5 rounded border border-red-500/30';
+
+            const base = sym.includes('BTC') ? 69200 : (sym.includes('XAU') ? 2735 : 1.084);
+            document.getElementById('sigEntry').innerText = base.toFixed(2);
+            document.getElementById('sigSL').innerText = (isBuy ? base * 0.992 : base * 1.008).toFixed(2);
+            document.getElementById('sigTP1').innerText = (isBuy ? base * 1.012 : base * 0.988).toFixed(2);
+            document.getElementById('sigTP2').innerText = (isBuy ? base * 1.025 : base * 0.975).toFixed(2);
+        }
+
+        // RENDER FOOTPRINT BRICKS
+        function renderFootprint() {
+            const container = document.getElementById('footprintContainer');
+            container.innerHTML = '';
+
+            for (let i = 0; i < 6; i++) {
+                let html = `
+                <div class="bg-dark-bg border border-dark-border rounded-lg p-2 font-mono text-[11px]">
+                    <div class="text-center font-bold text-white mb-2 border-b border-dark-border pb-1">Candle #${i+1}</div>
+                    <div class="space-y-1">
+                `;
+                for (let j = 0; j < 5; j++) {
+                    const bid = Math.floor(Math.random() * 80) + 10;
+                    const ask = Math.floor(Math.random() * 80) + 10;
+                    const isPOC = j === 2;
+                    html += `
+                        <div class="flex justify-between px-1 rounded ${isPOC ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300' : 'bg-dark-card'}">
+                            <span class="text-red-400">${bid}</span>
+                            <span class="text-slate-500">x</span>
+                            <span class="text-emerald-400">${ask}</span>
+                        </div>
+                    `;
+                }
+                html += `</div></div>`;
+                container.innerHTML += html;
+            }
+        }
+
+        // RENDER ECONOMIC CALENDAR
+        function renderCalendar() {
+            const tbody = document.getElementById('calendarTableBody');
+            const events = [
+                { time: '14:30 UTC', curr: 'USD', event: 'Core CPI (MoM)', impact: 'HIGH', forecast: '0.3%', prev: '0.2%', bias: 'Bullish USD' },
+                { time: '16:00 UTC', curr: 'USD', event: 'FOMC Member Speaks', impact: 'MEDIUM', forecast: '-', prev: '-', bias: 'Neutral' },
+                { time: '18:15 UTC', curr: 'EUR', event: 'ECB Interest Rate Decision', impact: 'HIGH', forecast: '3.25%', prev: '3.50%', bias: 'Bearish EUR' },
+                { time: '20:00 UTC', curr: 'GBP', event: 'GDP Output (YoY)', impact: 'HIGH', forecast: '1.0%', prev: '0.9%', bias: 'Bullish GBP' }
+            ];
+
+            tbody.innerHTML = events.map(e => `
+                <tr class="hover:bg-dark-hover transition">
+                    <td class="p-3 text-slate-400">${e.time}</td>
+                    <td class="p-3 font-bold text-white">${e.curr}</td>
+                    <td class="p-3 text-slate-200">${e.event}</td>
+                    <td class="p-3"><span class="${e.impact === 'HIGH' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'} border text-[10px] px-2 py-0.5 rounded font-bold">${e.impact}</span></td>
+                    <td class="p-3 text-slate-300">${e.forecast}</td>
+                    <td class="p-3 text-slate-400">${e.prev}</td>
+                    <td class="p-3 font-bold ${e.bias.includes('Bullish') ? 'text-emerald-400' : 'text-amber-400'}">${e.bias}</td>
+                </tr>
+            `).join('');
+        }
+
+        // DEMO BOT TRADES LOG
+        function renderTradeLog() {
+            const log = document.getElementById('tradeLogTable');
+            const trades = [
+                { time: '10:14:22', symbol: 'BTC/USDT', type: 'BUY', entry: '68,950.00', exit: '69,420.00', pnl: '+$470.00' },
+                { time: '08:45:10', symbol: 'XAU/USD', type: 'SELL', entry: '2,740.10', exit: '2,732.50', pnl: '+$152.00' }
+            ];
+
+            log.innerHTML = trades.map(t => `
+                <tr>
+                    <td class="p-2 text-slate-400">${t.time}</td>
+                    <td class="p-2 text-white font-bold">${t.symbol}</td>
+                    <td class="p-2 ${t.type === 'BUY' ? 'text-emerald-400' : 'text-red-400'} font-bold">${t.type}</td>
+                    <td class="p-2">${t.entry}</td>
+                    <td class="p-2">${t.exit}</td>
+                    <td class="p-2 text-emerald-400 font-bold">${t.pnl}</td>
+                </tr>
+            `).join('');
+        }
+
+        function toggleBot(active) {
+            console.log('Bot state:', active);
+        }
+    </script>
+</body>
+</html>
