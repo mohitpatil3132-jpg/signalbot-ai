@@ -1,634 +1,275 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SIGNALBOT AI - Institutional Trading Terminal</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons CDN -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- TradingView Widget Script -->
-    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        dark: {
-                            bg: '#080b11',
-                            card: '#0f1420',
-                            border: '#1a2234',
-                            hover: '#161e30'
-                        },
-                        brand: {
-                            blue: '#00f2fe',
-                            green: '#00e676',
-                            red: '#ff1744',
-                            yellow: '#ffea00'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        body {
-            background-color: #080b11;
-            color: #94a3b8;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            overflow-x: hidden;
-        }
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #080b11; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1a2234; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #2a364f; }
-        .glass-panel {
-            background: rgba(15, 20, 32, 0.85);
-            backdrop-filter: blur(12px);
-        }
-    </style>
-</head>
-<body class="bg-dark-bg text-slate-300 antialiased min-h-screen flex flex-col justify-between">
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Signal desk</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<script>
+/* ============ CONFIG: yahan apni keys paste karo ============ */
+window.CONFIG = {
+  keys: { alphaVantage: "PASTE_ALPHA_VANTAGE_KEY", fmp: "PASTE_FMP_KEY", finnhub: "", currency: "" },
+  /* Login: sirf 2 users. Password plain nahi, SHA-256 hash hai.
+     Hash banane ke liye browser console me chalao:
+     crypto.subtle.digest("SHA-256",new TextEncoder().encode("TERA_PASSWORD")).then(b=>console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")))
+     Default passwords: user1 = Demo@123 , user2 = Demo@456  (jaldi badlo) */
+  users: { user1: "ff96673205dc722320598ebf8f88325b2ac56922d5a2164b5765868274bc0d73", user2: "55cad7b964da084ed67aa4189cb95170ee00995006d488619c9723484881518a" },
+  balance: 10000, riskPct: 1, dailyLossPct: 3,
+  symbols: [
+    { name: "XAU/USD", tv: "OANDA:XAUUSD", from: "XAU", to: "USD", base: 2650, dp: 2 },
+    { name: "EUR/USD", tv: "FX:EURUSD", from: "EUR", to: "USD", base: 1.085, dp: 5 },
+    { name: "GBP/USD", tv: "FX:GBPUSD", from: "GBP", to: "USD", base: 1.29, dp: 5 },
+    { name: "BTC/USD", tv: "BINANCE:BTCUSDT", from: "BTC", to: "USD", base: 65000, dp: 1 }
+  ]
+};
+</script>
+<style>
+:root{--bg:#0b1018;--s1:#121a26;--s2:#18222f;--ln:#243142;--tx:#e8edf5;--mu:#8a98ac;--br:#d9b36a;--up:#3dd68c;--dn:#f0616d}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 "IBM Plex Sans",system-ui,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--br);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+.up{color:var(--up)}.dn{color:var(--dn)}.mu{color:var(--mu)}
+#login{min-height:100%;display:grid;place-items:center;padding:20px}
+.lbox{width:min(380px,100%);background:var(--s1);border:1px solid var(--ln);border-radius:14px;padding:28px}
+.lbox h1{margin:0 0 4px;font-size:24px;font-weight:600}
+.lbox p{margin:0 0 20px;color:var(--mu)}
+input{width:100%;background:var(--bg);border:1px solid var(--ln);border-radius:8px;padding:11px 12px;color:var(--tx);font:inherit;margin-bottom:10px}
+.btn{background:var(--br);color:#1a1405;border:0;border-radius:8px;padding:11px 16px;font-weight:600;width:100%}
+#err{color:var(--dn);min-height:20px;margin-top:8px;font-size:13px}
+#app{display:none;max-width:1400px;margin:0 auto;padding:14px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.brand{font-weight:600;font-size:18px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{background:var(--s1);border:1px solid var(--ln);border-radius:8px;padding:7px 12px;color:var(--mu);transition:.15s}
+.tab.on{color:var(--tx);border-color:var(--br)}
+.mode{position:relative;display:grid;grid-template-columns:repeat(3,1fr);background:var(--s1);border:1px solid var(--ln);border-radius:999px;padding:3px;min-width:270px}
+.mode button{position:relative;z-index:1;background:none;border:0;padding:8px 10px;border-radius:999px;color:var(--mu);transition:color .2s}
+.mode button.on{color:#10141b;font-weight:600}
+.mode i{position:absolute;top:3px;bottom:3px;width:calc(33.33% - 2px);border-radius:999px;background:var(--mu);transition:transform .28s cubic-bezier(.3,.8,.3,1),background .28s}
+.mode[data-m="1"] i{transform:translateX(100%);background:var(--br)}
+.mode[data-m="2"] i{transform:translateX(200%);background:var(--up)}
+.who{color:var(--mu);font-size:13px}
+.who button{background:none;border:0;color:var(--br);padding:0 0 0 8px}
+.grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr);gap:14px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:var(--s1);border:1px solid var(--ln);border-radius:12px;padding:16px;margin-bottom:14px}
+.card h2{margin:0 0 10px;font-size:15px;font-weight:600}
+#tv{height:480px;border-radius:12px;overflow:hidden;border:1px solid var(--ln);margin-bottom:14px}
+.big{font-size:26px;font-weight:600}
+.row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--ln)}
+.row:last-child{border:0}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;background:var(--s2)}
+.pill.b{color:var(--up)}.pill.s{color:var(--dn)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{color:var(--mu);font-weight:500;text-align:left;padding:6px 4px}
+td{padding:6px 4px;border-top:1px solid var(--ln)}
+.wrap{overflow-x:auto}
+.filters{display:flex;gap:6px;margin-bottom:8px}
+.filters button{background:var(--s2);border:1px solid var(--ln);border-radius:6px;padding:3px 10px;color:var(--mu);font-size:12px}
+.filters button.on{color:var(--tx);border-color:var(--br)}
+.lock{background:#3a1d22;border:1px solid var(--dn);border-radius:8px;padding:8px 12px;margin-bottom:12px;display:none}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head>
+<body>
+<section id="login">
+  <div class="lbox">
+    <h1>Signal desk</h1><p>Sign in to open your trading dashboard.</p>
+    <input id="u" placeholder="Username" autocomplete="username">
+    <input id="p" type="password" placeholder="Password" autocomplete="current-password">
+    <button class="btn" id="go">Sign in</button><div id="err"></div>
+  </div>
+</section>
 
-    <!-- LOGIN OVERLAY -->
-    <div id="loginOverlay" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-        <div class="bg-dark-card border border-dark-border rounded-xl w-full max-w-md p-6 shadow-2xl relative">
-            <div class="text-center mb-6">
-                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-cyan-500/10 text-cyan-400 mb-3 border border-cyan-500/20 shadow-lg shadow-cyan-500/10">
-                    <i class="fa-solid fa-robot text-2xl"></i>
-                </div>
-                <h1 class="text-2xl font-bold text-white tracking-wider">SIGNALBOT AI</h1>
-                <p class="text-xs text-slate-400 mt-1">Institutional Order Flow & SMC Terminal v2.0</p>
-            </div>
-
-            <div id="loginError" class="hidden mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-xs text-red-400 text-center font-mono">
-                Invalid Credentials! Restricted Access to 2 Authorized Users.
-            </div>
-
-            <form id="loginForm" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Username</label>
-                    <input type="text" id="usernameInput" required placeholder="Enter username" class="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Password</label>
-                    <input type="password" id="passwordInput" required placeholder="••••••••" class="w-full bg-dark-bg border border-dark-border rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500 transition">
-                </div>
-                <button type="submit" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold py-2.5 rounded-lg shadow-lg shadow-cyan-500/20 text-sm transition transform active:scale-95">
-                    Access Terminal <i class="fa-solid fa-right-to-bracket ml-2"></i>
-                </button>
-            </form>
-
-            <div class="mt-6 pt-4 border-t border-dark-border">
-                <p class="text-xs text-slate-500 text-center mb-3">Quick One-Click Access:</p>
-                <div class="grid grid-cols-2 gap-2">
-                    <button type="button" onclick="quickLogin('admin', 'admin123')" class="bg-dark-bg border border-dark-border hover:border-cyan-500/50 py-2 rounded-lg text-xs text-slate-300 hover:text-white transition flex flex-col items-center">
-                        <span class="font-bold text-cyan-400">User 1 (Admin)</span>
-                        <span class="text-[10px] text-slate-500">admin / admin123</span>
-                    </button>
-                    <button type="button" onclick="quickLogin('trader', 'trader123')" class="bg-dark-bg border border-dark-border hover:border-cyan-500/50 py-2 rounded-lg text-xs text-slate-300 hover:text-white transition flex flex-col items-center">
-                        <span class="font-bold text-emerald-400">User 2 (Trader)</span>
-                        <span class="text-[10px] text-slate-500">trader / trader123</span>
-                    </button>
-                </div>
-            </div>
-        </div>
+<main id="app">
+  <header>
+    <div class="brand">Signal desk <span class="pill">Demo data</span></div>
+    <div class="tabs" id="tabs"></div>
+    <div class="mode" id="mode" data-m="0"><i></i>
+      <button data-m="0" class="on">Bot off</button><button data-m="1">Signals only</button><button data-m="2">Auto (paper)</button>
     </div>
-
-    <!-- MAIN TERMINAL APP -->
-    <div id="mainApp" class="flex-1 flex flex-col h-screen overflow-hidden hidden">
-        <!-- TOP NAVBAR -->
-        <header class="h-14 bg-dark-card border-b border-dark-border px-4 flex items-center justify-between shrink-0">
-            <div class="flex items-center space-x-4">
-                <div class="flex items-center space-x-2">
-                    <i class="fa-solid fa-bolt text-cyan-400 text-lg"></i>
-                    <span class="font-bold text-white text-base tracking-wide">SIGNALBOT AI</span>
-                    <span class="bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[10px] px-2 py-0.5 rounded font-mono">v2.0 PRO</span>
-                </div>
-                <div class="hidden lg:flex items-center space-x-2 text-xs border-l border-dark-border pl-4">
-                    <span class="flex h-2 w-2 relative">
-                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                    <span class="text-slate-400">TradingView + APIs Active:</span>
-                    <span class="text-slate-200 font-mono text-[11px]">AlphaVantage • Finnhub • CurrencyAPI • FMP</span>
-                </div>
-            </div>
-
-            <div class="flex items-center space-x-3">
-                <div class="flex items-center bg-dark-bg border border-dark-border rounded-lg px-3 py-1 text-xs">
-                    <i class="fa-solid fa-wallet text-amber-400 mr-2"></i>
-                    <span class="text-slate-400 mr-1">Account Equity:</span>
-                    <span id="demoBalance" class="text-emerald-400 font-mono font-bold">$10,000.00</span>
-                </div>
-
-                <div class="flex items-center space-x-2 border-l border-dark-border pl-3">
-                    <div class="w-7 h-7 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-xs border border-cyan-500/30">
-                        <span id="userAvatar">U</span>
-                    </div>
-                    <span id="userName" class="text-xs text-white font-semibold hidden md:inline">User</span>
-                    <button onclick="logout()" title="Logout" class="text-slate-400 hover:text-red-400 p-1 transition ml-1">
-                        <i class="fa-solid fa-power-off"></i>
-                    </button>
-                </div>
-            </div>
-        </header>
-
-        <!-- MAIN WORKSPACE -->
-        <div class="flex-1 flex overflow-hidden">
-            <!-- SIDEBAR NAVIGATION -->
-            <aside class="w-16 md:w-56 bg-dark-card border-r border-dark-border flex flex-col justify-between shrink-0">
-                <div class="py-3 px-2 space-y-1">
-                    <button onclick="switchTab('chart')" id="btnTabChart" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 transition">
-                        <i class="fa-solid fa-chart-candlestick text-base w-5 text-center"></i>
-                        <span class="hidden md:inline">Live Chart & Signals</span>
-                    </button>
-                    <button onclick="switchTab('footprint')" id="btnTabFootprint" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-dark-hover transition">
-                        <i class="fa-solid fa-bars-staggered text-base w-5 text-center"></i>
-                        <span class="hidden md:inline">Footprint Order Flow</span>
-                    </button>
-                    <button onclick="switchTab('calendar')" id="btnTabCalendar" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-dark-hover transition">
-                        <i class="fa-regular fa-calendar-days text-base w-5 text-center"></i>
-                        <span class="hidden md:inline">Economic Calendar</span>
-                    </button>
-                    <button onclick="switchTab('bot')" id="btnTabBot" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-dark-hover transition">
-                        <i class="fa-solid fa-robot text-base w-5 text-center"></i>
-                        <span class="hidden md:inline">Demo Trading Bot</span>
-                    </button>
-                </div>
-
-                <!-- SYSTEM STATUS -->
-                <div class="p-3 border-t border-dark-border hidden md:block">
-                    <div class="text-[10px] text-slate-500 font-semibold uppercase mb-2">API Connection Status</div>
-                    <div class="space-y-1 font-mono text-[10px]">
-                        <div class="flex justify-between items-center bg-dark-bg p-1.5 rounded border border-dark-border">
-                            <span class="text-slate-400">AlphaVantage:</span>
-                            <span class="text-emerald-400">OK</span>
-                        </div>
-                        <div class="flex justify-between items-center bg-dark-bg p-1.5 rounded border border-dark-border">
-                            <span class="text-slate-400">Finnhub:</span>
-                            <span class="text-emerald-400">OK</span>
-                        </div>
-                        <div class="flex justify-between items-center bg-dark-bg p-1.5 rounded border border-dark-border">
-                            <span class="text-slate-400">CurrencyAPI:</span>
-                            <span class="text-emerald-400">OK</span>
-                        </div>
-                        <div class="flex justify-between items-center bg-dark-bg p-1.5 rounded border border-dark-border">
-                            <span class="text-slate-400">FMP API:</span>
-                            <span class="text-emerald-400">OK</span>
-                        </div>
-                    </div>
-                </div>
-            </aside>
-
-            <!-- MAIN WORKSPACE -->
-            <main class="flex-1 bg-dark-bg overflow-y-auto custom-scrollbar p-3 flex flex-col">
-                
-                <!-- TAB 1: TRADINGVIEW CHART & SMC SIGNALS -->
-                <div id="tabChart" class="flex-1 flex flex-col lg:flex-row gap-3">
-                    <div class="flex-1 bg-dark-card border border-dark-border rounded-xl p-3 flex flex-col min-h-[550px]">
-                        <div class="flex items-center justify-between pb-2 mb-2 border-b border-dark-border">
-                            <div class="flex items-center space-x-2">
-                                <label class="text-xs text-slate-400 font-semibold">Asset Pair:</label>
-                                <select id="tvSymbolSelect" onchange="changeTVSymbol(this.value)" class="bg-dark-bg border border-dark-border rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-cyan-500 font-bold">
-                                    <option value="BITSTAMP:BTCUSD">BTC/USD (Bitcoin Live)</option>
-                                    <option value="OANDA:XAUUSD">XAU/USD (Gold Spot Live)</option>
-                                    <option value="FX:EURUSD">EUR/USD (Forex Live)</option>
-                                    <option value="BINANCE:ETHUSDT">ETH/USDT (Ethereum Live)</option>
-                                </select>
-                            </div>
-                            <div class="flex items-center space-x-2 text-xs">
-                                <span class="bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 rounded font-mono">SMC / LuxAlgo Overlay Active</span>
-                            </div>
-                        </div>
-
-                        <!-- TRADINGVIEW CONTAINER -->
-                        <div class="flex-1 w-full relative min-h-[460px] rounded overflow-hidden" id="tv_chart_container"></div>
-                    </div>
-
-                    <!-- AI SIGNAL SCANNER -->
-                    <div class="w-full lg:w-80 bg-dark-card border border-dark-border rounded-xl p-4 flex flex-col justify-between shrink-0">
-                        <div>
-                            <div class="flex items-center justify-between pb-3 border-b border-dark-border mb-4">
-                                <h2 class="font-bold text-white text-sm flex items-center">
-                                    <i class="fa-solid fa-radar text-cyan-400 mr-2"></i> Live Signal Engine
-                                </h2>
-                                <span class="bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-0.5 rounded border border-emerald-500/20">LIVE</span>
-                            </div>
-
-                            <button onclick="generateRealSignal()" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-2.5 rounded-lg shadow-lg shadow-cyan-500/20 text-xs transition transform active:scale-95 mb-4">
-                                <i class="fa-solid fa-wand-magic-sparkles mr-2"></i> ANALYZE CURRENT CHART
-                            </button>
-
-                            <div id="signalCard" class="bg-dark-bg border border-cyan-500/30 rounded-xl p-3.5 space-y-3">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-xs font-bold text-white" id="sigSymbol">BTC/USD</span>
-                                    <span id="sigBadge" class="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2 py-0.5 rounded border border-emerald-500/30">BUY / LONG</span>
-                                </div>
-                                <div class="space-y-1.5 font-mono text-xs">
-                                    <div class="flex justify-between text-slate-400">
-                                        <span>Entry Zone:</span>
-                                        <span id="sigEntry" class="text-white font-bold">82,720.00</span>
-                                    </div>
-                                    <div class="flex justify-between text-slate-400">
-                                        <span>Stop Loss (SL):</span>
-                                        <span id="sigSL" class="text-red-400 font-bold">82,150.00</span>
-                                    </div>
-                                    <div class="flex justify-between text-slate-400">
-                                        <span>Take Profit 1:</span>
-                                        <span id="sigTP1" class="text-emerald-400 font-bold">83,500.00</span>
-                                    </div>
-                                    <div class="flex justify-between text-slate-400">
-                                        <span>Take Profit 2:</span>
-                                        <span id="sigTP2" class="text-emerald-400 font-bold">84,200.00</span>
-                                    </div>
-                                </div>
-                                <div class="p-2 bg-dark-card rounded border border-dark-border text-[11px] text-slate-300">
-                                    <span class="text-cyan-400 font-bold">Confluence:</span>
-                                    <span id="sigReason">Bullish Order Block retest after Asia High Liquidity Sweep.</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mt-4 pt-3 border-t border-dark-border text-center">
-                            <span class="text-[10px] text-slate-500">Signal Confidence Index: <strong class="text-cyan-400">89.2%</strong></span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- TAB 2: ADVANCED FOOTPRINT ORDER FLOW -->
-                <div id="tabFootprint" class="flex-1 flex flex-col gap-3 hidden">
-                    <div class="bg-dark-card border border-dark-border rounded-xl p-4 flex-1">
-                        <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-dark-border">
-                            <div>
-                                <h2 class="font-bold text-white text-base">Institutional Footprint & Delta Imbalance</h2>
-                                <p class="text-xs text-slate-400">Real-time Order Flow Bricks, Point of Control (POC), and Bid/Ask Volumetric Imbalance</p>
-                            </div>
-
-                            <!-- BUY/SELL RATIO GAUGE -->
-                            <div class="flex items-center space-x-3 bg-dark-bg p-2 rounded-lg border border-dark-border text-xs">
-                                <span class="text-slate-400 font-semibold">Volume Ratio:</span>
-                                <div class="flex items-center space-x-1 font-mono">
-                                    <span class="text-emerald-400 font-bold">BUY 62%</span>
-                                    <div class="w-20 h-2 bg-red-500/30 rounded-full overflow-hidden flex">
-                                        <div class="bg-emerald-500 h-full w-[62%]"></div>
-                                    </div>
-                                    <span class="text-red-400 font-bold">38% SELL</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- FOOTPRINT CANVAS / BRICKS GRID -->
-                        <div id="footprintContainer" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 overflow-x-auto p-1">
-                            <!-- Dynamically generated footprint bricks -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- TAB 3: HIGH-IMPACT ECONOMIC CALENDAR -->
-                <div id="tabCalendar" class="flex-1 flex flex-col gap-3 hidden">
-                    <div class="bg-dark-card border border-dark-border rounded-xl p-4 flex-1">
-                        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 mb-4 border-b border-dark-border">
-                            <div>
-                                <h2 class="font-bold text-white text-base">Economic Calendar & Fundamental Bias</h2>
-                                <p class="text-xs text-slate-400">Real-time Interest Rate, Inflation (CPI), NFP, and Central Bank Speeches</p>
-                            </div>
-
-                            <!-- COUNTDOWN TIMER & FILTERS -->
-                            <div class="flex items-center space-x-3">
-                                <div class="bg-red-500/10 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs flex items-center space-x-2">
-                                    <i class="fa-solid fa-clock text-red-400 animate-pulse"></i>
-                                    <span class="text-slate-400">Next High Event:</span>
-                                    <span id="newsTimer" class="text-white font-mono font-bold">01h 42m 10s</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- CALENDAR TABLE -->
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-xs text-slate-300">
-                                <thead class="bg-dark-bg text-slate-400 uppercase font-semibold border-b border-dark-border">
-                                    <tr>
-                                        <th class="p-3">Time (UTC)</th>
-                                        <th class="p-3">Currency</th>
-                                        <th class="p-3">Event Name</th>
-                                        <th class="p-3">Impact</th>
-                                        <th class="p-3">Forecast</th>
-                                        <th class="p-3">Previous</th>
-                                        <th class="p-3">AI Market Bias</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="calendarTableBody" class="divide-y divide-dark-border font-mono">
-                                    <!-- Dynamic Calendar Rows -->
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- TAB 4: DEMO TRADING BOT & EXECUTOR -->
-                <div id="tabBot" class="flex-1 flex flex-col gap-3 hidden">
-                    <div class="bg-dark-card border border-dark-border rounded-xl p-4 flex-1 flex flex-col">
-                        <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-dark-border">
-                            <div>
-                                <h2 class="font-bold text-white text-base">Algorithmic Bot Executor & Order Ticket</h2>
-                                <p class="text-xs text-slate-400">Paper Trading Bot with Automated Stop Loss and Dynamic Position Sizing</p>
-                            </div>
-                            <div class="flex items-center space-x-3">
-                                <span class="text-xs text-slate-400 font-semibold">Bot Status:</span>
-                                <button id="btnBotToggle" onclick="toggleBotState()" class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded text-xs font-bold flex items-center space-x-2">
-                                    <i class="fa-solid fa-circle text-[8px] animate-pulse"></i>
-                                    <span id="botStateText">RUNNING AUTO SCAN</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- BOT METRICS HEADER -->
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-                            <div class="bg-dark-bg p-3 rounded-lg border border-dark-border">
-                                <span class="text-[10px] text-slate-500 uppercase">Strategy Engine</span>
-                                <div class="font-bold text-white text-sm">SMC Order Block Scalper</div>
-                            </div>
-                            <div class="bg-dark-bg p-3 rounded-lg border border-dark-border">
-                                <span class="text-[10px] text-slate-500 uppercase">Risk Per Trade</span>
-                                <div class="font-bold text-cyan-400 text-sm">1.0% ($100.00)</div>
-                            </div>
-                            <div class="bg-dark-bg p-3 rounded-lg border border-dark-border">
-                                <span class="text-[10px] text-slate-500 uppercase">Win Rate</span>
-                                <div class="font-bold text-emerald-400 text-sm">78.5% (28/35)</div>
-                            </div>
-                            <div class="bg-dark-bg p-3 rounded-lg border border-dark-border">
-                                <span class="text-[10px] text-slate-500 uppercase">Net Paper Profit</span>
-                                <div id="totalPnL" class="font-bold text-emerald-400 text-sm">+$845.50</div>
-                            </div>
-                        </div>
-
-                        <!-- ORDER TICKET & LIVE TRADES LOG -->
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1">
-                            <!-- MANUAL ORDER EXECUTION FORM -->
-                            <div class="bg-dark-bg p-3.5 rounded-lg border border-dark-border space-y-3">
-                                <h3 class="font-bold text-white text-xs uppercase tracking-wider border-b border-dark-border pb-2">New Execution Order</h3>
-                                <div>
-                                    <label class="block text-[10px] text-slate-400 uppercase mb-1">Select Pair</label>
-                                    <select id="botOrderSymbol" class="w-full bg-dark-card border border-dark-border rounded px-2.5 py-1.5 text-xs text-white">
-                                        <option value="BTCUSD">BTC/USD (Bitcoin)</option>
-                                        <option value="XAUUSD">XAU/USD (Gold)</option>
-                                        <option value="EURUSD">EUR/USD (Forex)</option>
-                                    </select>
-                                </div>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div>
-                                        <label class="block text-[10px] text-slate-400 uppercase mb-1">Lot Size / Qty</label>
-                                        <input type="number" value="1.0" class="w-full bg-dark-card border border-dark-border rounded px-2.5 py-1.5 text-xs text-white font-mono">
-                                    </div>
-                                    <div>
-                                        <label class="block text-[10px] text-slate-400 uppercase mb-1">SL (Ticks)</label>
-                                        <input type="number" value="25" class="w-full bg-dark-card border border-dark-border rounded px-2.5 py-1.5 text-xs text-white font-mono">
-                                    </div>
-                                </div>
-                                <div class="grid grid-cols-2 gap-2 pt-2">
-                                    <button onclick="placeManualTrade('BUY')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded text-xs transition">
-                                        MARKET BUY
-                                    </button>
-                                    <button onclick="placeManualTrade('SELL')" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 rounded text-xs transition">
-                                        MARKET SELL
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- TRADES HISTORY TABLE -->
-                            <div class="lg:col-span-2 bg-dark-bg p-3.5 rounded-lg border border-dark-border flex flex-col">
-                                <h3 class="font-bold text-white text-xs uppercase tracking-wider border-b border-dark-border pb-2 mb-2">Executed Trades Log</h3>
-                                <div class="flex-1 overflow-y-auto custom-scrollbar">
-                                    <table class="w-full text-left text-xs font-mono">
-                                        <thead class="text-slate-500 border-b border-dark-border">
-                                            <tr>
-                                                <th class="p-2">Time</th>
-                                                <th class="p-2">Symbol</th>
-                                                <th class="p-2">Side</th>
-                                                <th class="p-2">Entry Price</th>
-                                                <th class="p-2">Exit Price</th>
-                                                <th class="p-2">PnL ($)</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="tradeLogTable" class="divide-y divide-dark-border text-slate-300">
-                                            <!-- Dynamic Logs -->
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </main>
-        </div>
+    <div class="who"><span id="me"></span><button id="out">Sign out</button></div>
+  </header>
+  <div class="lock" id="lock"></div>
+  <div class="grid">
+    <div>
+      <div id="tv"></div>
+      <div class="card"><h2>Open and pending trades</h2><div class="wrap"><table><thead><tr><th>Pair</th><th>Side</th><th>Entry</th><th>SL</th><th>TP1</th><th>TP2</th><th>Status</th><th>P/L</th></tr></thead><tbody id="open"></tbody></table></div></div>
+      <div class="card"><h2>Closed trades</h2><div class="wrap"><table><thead><tr><th>Pair</th><th>Side</th><th>Result</th><th>P/L</th></tr></thead><tbody id="hist"></tbody></table></div></div>
     </div>
+    <div>
+      <div class="card"><h2>Signal</h2><div id="sig"></div></div>
+      <div class="card"><h2>Account (paper)</h2><div id="acc"></div></div>
+      <div class="card"><h2>News mood</h2><div id="news" class="mu">Loading...</div></div>
+      <div class="card"><h2>Economic calendar</h2>
+        <div class="filters" id="flt"><button data-f="all" class="on">All</button><button data-f="High">High</button><button data-f="Medium">Medium</button><button data-f="Low">Low</button></div>
+        <div id="cd" style="margin-bottom:8px"></div><div id="cal"></div></div>
+    </div>
+  </div>
+</main>
 
-    <!-- MAIN JAVASCRIPT LOGIC -->
-    <script>
-        const USERS = { 'admin': 'admin123', 'trader': 'trader123' };
-        let botActive = true;
+<script>
+const C = window.CONFIG, $ = s => document.querySelector(s), K = C.keys;
+const hex = async t => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t)))].map(x => x.toString(16).padStart(2, "0")).join("");
+let cur = 0, mode = 0, calF = "all", events = [], newsMood = 0, startBal = C.balance, bal = C.balance, dayLoss = 0;
+const S = {}, SIG = {}, trades = [], closed = [];
+const f = (v, d) => Number(v).toFixed(d);
 
-        function quickLogin(u, p) {
-            document.getElementById('usernameInput').value = u;
-            document.getElementById('passwordInput').value = p;
-            handleLogin(u, p);
-        }
+/* ---------- login ---------- */
+async function login() {
+  const u = $("#u").value.trim(), h = await hex($("#p").value);
+  if (C.users[u] && C.users[u] === h) { sessionStorage.s = u; start(u); } else $("#err").textContent = "Wrong username or password.";
+}
+$("#go").onclick = login; $("#p").onkeydown = e => e.key === "Enter" && login();
+$("#out").onclick = () => { sessionStorage.removeItem("s"); location.reload(); };
 
-        document.getElementById('loginForm').addEventListener('submit', (e) => {
-            e.preventDefault();
-            handleLogin(document.getElementById('usernameInput').value.trim(), document.getElementById('passwordInput').value.trim());
-        });
+/* ---------- market data (demo candles, anchored to live price when available) ---------- */
+function gen(base, n = 140) {
+  const v = base * 0.0007; let p = base, a = [], t = Date.now() - n * 9e5;
+  for (let i = 0; i < n; i++) {
+    const o = p, c = o + (Math.random() - .5) * v * 2 + Math.sin(i / 14) * v * .35;
+    a.push({ t: t + i * 9e5, o, c, h: Math.max(o, c) + Math.random() * v * .6, l: Math.min(o, c) - Math.random() * v * .6 }); p = c;
+  } return a;
+}
+async function livePrice(s) {
+  const ck = "px_" + s.name, c = JSON.parse(localStorage[ck] || "null");
+  if (c && Date.now() - c.t < 6 * 36e5) return c.p;
+  if (!K.alphaVantage || K.alphaVantage.startsWith("PASTE")) return null;
+  try {
+    const r = await (await fetch(`https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=${s.from}&to_currency=${s.to}&apikey=${K.alphaVantage}`)).json();
+    const p = parseFloat(r["Realtime Currency Exchange Rate"]["5. Exchange Rate"]);
+    if (p) { localStorage[ck] = JSON.stringify({ t: Date.now(), p }); return p; }
+  } catch (e) {} return null;
+}
 
-        function handleLogin(u, p) {
-            if (USERS[u] && USERS[u] === p) {
-                document.getElementById('loginOverlay').classList.add('hidden');
-                document.getElementById('mainApp').classList.remove('hidden');
-                document.getElementById('userName').innerText = u.toUpperCase();
-                document.getElementById('userAvatar').innerText = u.charAt(0).toUpperCase();
-                
-                loadTradingViewWidget('BITSTAMP:BTCUSD');
-                renderFootprint();
-                renderCalendar();
-                renderTradeLog();
-                startTimer();
-            } else {
-                document.getElementById('loginError').classList.remove('hidden');
-            }
-        }
+/* ---------- SMC + price action ---------- */
+function swings(c, k = 2) {
+  const hi = [], lo = [];
+  for (let i = k; i < c.length - k; i++) {
+    let h = true, l = true;
+    for (let j = 1; j <= k; j++) { if (c[i].h <= c[i - j].h || c[i].h <= c[i + j].h) h = false; if (c[i].l >= c[i - j].l || c[i].l >= c[i + j].l) l = false; }
+    if (h) hi.push(i); if (l) lo.push(i);
+  } return { hi, lo };
+}
+function analyse(c, s) {
+  const n = c.length, last = c[n - 1], { hi, lo } = swings(c), lh = hi.at(-1), ll = lo.at(-1);
+  const atr = c.slice(-14).reduce((a, x) => a + x.h - x.l, 0) / 14, notes = []; let dir = null, score = 0;
+  if (lh != null && last.c > c[lh].h) { dir = "BUY"; notes.push("Break of structure above " + f(c[lh].h, s.dp)); score++; }
+  else if (ll != null && last.c < c[ll].l) { dir = "SELL"; notes.push("Break of structure below " + f(c[ll].l, s.dp)); score++; }
+  if (!dir) return { dir: null, notes: ["No clear break of structure. Market is ranging."], score: 0 };
+  const from = dir === "BUY" ? ll : lh; let ob = null;
+  for (let i = n - 2; i >= from; i--) if (dir === "BUY" ? c[i].c < c[i].o : c[i].c > c[i].o) { ob = c[i]; break; }
+  if (!ob) return { dir: null, notes: ["Break found but no order block to trade from."], score: 0 };
+  notes.push("Order block " + f(ob.l, s.dp) + " to " + f(ob.h, s.dp)); score++;
+  const swept = c.slice(from + 1).some(x => dir === "BUY" ? (x.l < c[ll].l && x.c > c[ll].l) : (x.h > c[lh].h && x.c < c[lh].h));
+  if (swept) { notes.push("Liquidity sweep before the move"); score++; }
+  let fvg = false;
+  for (let i = Math.max(2, n - 30); i < n; i++) if (dir === "BUY" ? c[i].l > c[i - 2].h : c[i].h < c[i - 2].l) fvg = true;
+  if (fvg) { notes.push("Fair value gap in the move direction"); score++; }
+  if ((newsMood > .15 && dir === "BUY") || (newsMood < -.15 && dir === "SELL")) { notes.push("News mood agrees"); score++; }
+  const entry = (ob.h + ob.l) / 2, sl = dir === "BUY" ? ob.l - atr * .25 : ob.h + atr * .25, R = Math.abs(entry - sl), m = dir === "BUY" ? 1 : -1;
+  return { dir, entry, sl, tp1: entry + m * 2 * R, tp2: entry + m * 3 * R, score, notes, id: Date.now() };
+}
 
-        function logout() {
-            document.getElementById('loginOverlay').classList.remove('hidden');
-            document.getElementById('mainApp').classList.add('hidden');
-        }
+/* ---------- ticks, signals, paper bot ---------- */
+function newsLock() {
+  const now = Date.now(), e = events.find(x => x.impact === "High" && Math.abs(x.t - now) < 30 * 6e4);
+  return e || null;
+}
+function recalc(name) {
+  const s = C.symbols.find(x => x.name === name), a = analyse(S[name], s), old = SIG[name];
+  if (a.dir && a.score >= 3) { if (!old || old.dir !== a.dir) { SIG[name] = a; autoTrade(name, a); } }
+  else if (!a.dir) SIG[name] = { dir: null, notes: a.notes };
+}
+function autoTrade(name, g) {
+  if (mode !== 2 || newsLock() || dayLoss <= -C.dailyLossPct / 100 * startBal) return;
+  if (trades.some(t => t.sym === name)) return;
+  trades.push({ sym: name, dir: g.dir, entry: g.entry, sl: g.sl, tp1: g.tp1, tp2: g.tp2, risk: bal * C.riskPct / 100, st: "Pending", half: false, real: 0 });
+}
+function manage(name, p) {
+  for (const t of [...trades]) if (t.sym === name) {
+    const B = t.dir === "BUY";
+    if (t.st === "Pending") {
+      if ((B && p <= t.entry) || (!B && p >= t.entry)) t.st = "Open";
+      else if ((B && p <= t.sl) || (!B && p >= t.sl)) trades.splice(trades.indexOf(t), 1);
+      continue;
+    }
+    const hitSL = B ? p <= t.sl : p >= t.sl, hit1 = B ? p >= t.tp1 : p <= t.tp1, hit2 = B ? p >= t.tp2 : p <= t.tp2;
+    if (hit2) close(t, t.real + 1.5 * t.risk, "TP2");
+    else if (hitSL) close(t, t.half ? t.real : -t.risk, t.half ? "Break-even" : "Stop loss");
+    else if (hit1 && !t.half) { t.half = true; t.real = t.risk; t.sl = t.entry; }
+    t.pl = t.half ? t.real : (B ? p - t.entry : t.entry - p) / Math.abs(t.entry - t.sl) * t.risk;
+  }
+}
+function close(t, pl, why) {
+  trades.splice(trades.indexOf(t), 1); closed.unshift({ sym: t.sym, dir: t.dir, why, pl }); bal += pl; dayLoss += pl;
+  if (dayLoss <= -C.dailyLossPct / 100 * startBal) setMode(0);
+}
+let tickN = 0;
+function tick() {
+  tickN++;
+  for (const s of C.symbols) {
+    const c = S[s.name], l = c.at(-1), v = s.base * .00035; let p = l.c + (Math.random() - .5) * v;
+    if (tickN % 20 === 0) { c.push({ t: Date.now(), o: l.c, c: p, h: Math.max(l.c, p), l: Math.min(l.c, p) }); if (c.length > 200) c.shift(); recalc(s.name); }
+    else { l.c = p; l.h = Math.max(l.h, p); l.l = Math.min(l.l, p); }
+    manage(s.name, p);
+  } render();
+}
 
-        function switchTab(t) {
-            ['tabChart', 'tabFootprint', 'tabCalendar', 'tabBot'].forEach(id => document.getElementById(id).classList.add('hidden'));
-            ['btnTabChart', 'btnTabFootprint', 'btnTabCalendar', 'btnTabBot'].forEach(id => {
-                document.getElementById(id).className = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-dark-hover transition";
-            });
+/* ---------- news + calendar ---------- */
+async function loadNews() {
+  const ck = "news", c = JSON.parse(localStorage[ck] || "null");
+  if (c && Date.now() - c.t < 6 * 36e5) { newsMood = c.m; return; }
+  if (K.alphaVantage.startsWith("PASTE")) return;
+  try {
+    const r = await (await fetch(`https://www.alphavantage.co/query?function=NEWS_SENTIMENT&topics=economy_macro,financial_markets&limit=30&apikey=${K.alphaVantage}`)).json();
+    const a = (r.feed || []).map(x => parseFloat(x.overall_sentiment_score)).filter(x => !isNaN(x));
+    if (a.length) { newsMood = a.reduce((x, y) => x + y, 0) / a.length; localStorage[ck] = JSON.stringify({ t: Date.now(), m: newsMood }); }
+  } catch (e) {}
+}
+async function loadCal() {
+  const d = x => new Date(x).toISOString().slice(0, 10), t = Date.now();
+  if (!K.fmp.startsWith("PASTE")) try {
+    const r = await (await fetch(`https://financialmodelingprep.com/api/v3/economic_calendar?from=${d(t)}&to=${d(t + 2 * 864e5)}&apikey=${K.fmp}`)).json();
+    if (Array.isArray(r) && r.length) { events = r.filter(x => x.country === "US" || x.country === "EU" || x.country === "GB").map(x => ({ t: Date.parse(x.date.replace(" ", "T") + "Z"), name: x.event, cur: x.country, impact: x.impact || "Low", fc: x.estimate, pv: x.previous, ac: x.actual })).sort((a, b) => a.t - b.t); return; }
+  } catch (e) {}
+  const m = 6e4; events = [["Core CPI m/m", "USD", "High", 50 * m], ["FOMC member speaks", "USD", "Medium", 3 * 36e5], ["German Ifo index", "EUR", "Medium", 5 * 36e5], ["Jobless claims", "USD", "Low", 20 * 36e5]].map(x => ({ t: t + x[3], name: x[0], cur: x[1], impact: x[2], fc: "-", pv: "-", ac: null }));
+}
 
-            const activeBtn = document.getElementById('btnTab' + t.charAt(0).toUpperCase() + t.slice(1));
-            if (activeBtn) {
-                activeBtn.className = "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-xs font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 transition";
-            }
-            document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).classList.remove('hidden');
-        }
-
-        function loadTradingViewWidget(symbol) {
-            document.getElementById('tv_chart_container').innerHTML = '';
-            new TradingView.widget({
-                "autosize": true,
-                "symbol": symbol,
-                "interval": "1",
-                "timezone": "Etc/UTC",
-                "theme": "dark",
-                "style": "1",
-                "locale": "en",
-                "toolbar_bg": "#080b11",
-                "enable_publishing": false,
-                "hide_side_toolbar": false,
-                "allow_symbol_change": true,
-                "container_id": "tv_chart_container"
-            });
-        }
-
-        function changeTVSymbol(sym) {
-            loadTradingViewWidget(sym);
-            generateRealSignal();
-        }
-
-        function generateRealSignal() {
-            const sym = document.getElementById('tvSymbolSelect').value;
-            const symName = sym.split(':')[1] || sym;
-            
-            document.getElementById('sigSymbol').innerText = symName;
-            if (symName.includes('BTC')) {
-                document.getElementById('sigEntry').innerText = '82,720.00';
-                document.getElementById('sigSL').innerText = '82,150.00';
-                document.getElementById('sigTP1').innerText = '83,500.00';
-                document.getElementById('sigTP2').innerText = '84,200.00';
-            } else if (symName.includes('XAU')) {
-                document.getElementById('sigEntry').innerText = '2,735.40';
-                document.getElementById('sigSL').innerText = '2,722.00';
-                document.getElementById('sigTP1').innerText = '2,750.00';
-                document.getElementById('sigTP2').innerText = '2,765.00';
-            } else {
-                document.getElementById('sigEntry').innerText = '1.0845';
-                document.getElementById('sigSL').innerText = '1.0810';
-                document.getElementById('sigTP1').innerText = '1.0890';
-                document.getElementById('sigTP2').innerText = '1.0920';
-            }
-        }
-
-        function renderFootprint() {
-            const container = document.getElementById('footprintContainer');
-            container.innerHTML = '';
-            for (let i = 0; i < 6; i++) {
-                let html = `
-                    <div class="bg-dark-bg p-2.5 rounded-lg border border-dark-border font-mono text-xs">
-                        <div class="text-center text-white font-bold mb-2 pb-1 border-b border-dark-border text-[11px]">Candle Brick #${i+1}</div>
-                        <div class="space-y-1">
-                            <div class="flex justify-between px-1 bg-dark-card rounded">
-                                <span class="text-red-400">140</span><span class="text-slate-600">x</span><span class="text-emerald-400">95</span>
-                            </div>
-                            <div class="flex justify-between px-1 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded font-bold">
-                                <span>310</span><span>POC</span><span>280</span>
-                            </div>
-                            <div class="flex justify-between px-1 bg-dark-card rounded">
-                                <span class="text-red-400">85</span><span class="text-slate-600">x</span><span class="text-emerald-400">160</span>
-                            </div>
-                        </div>
-                        <div class="mt-2 pt-1 border-t border-dark-border flex justify-between text-[10px]">
-                            <span class="text-slate-500">Delta:</span>
-                            <span class="text-emerald-400 font-bold">+125</span>
-                        </div>
-                    </div>
-                `;
-                container.innerHTML += html;
-            }
-        }
-
-        function renderCalendar() {
-            const events = [
-                { time: '14:30', curr: 'USD', event: 'Core CPI (MoM)', impact: 'HIGH', forecast: '0.3%', prev: '0.2%', bias: 'Bullish USD' },
-                { time: '16:00', curr: 'USD', event: 'FOMC Press Conference', impact: 'HIGH', forecast: '-', prev: '-', bias: 'High Volatility' },
-                { time: '18:15', curr: 'EUR', event: 'ECB Rate Decision', impact: 'HIGH', forecast: '3.25%', prev: '3.50%', bias: 'Bearish EUR' },
-                { time: '20:00', curr: 'GBP', event: 'Retail Sales (YoY)', impact: 'MEDIUM', forecast: '0.5%', prev: '0.4%', bias: 'Bullish GBP' }
-            ];
-
-            document.getElementById('calendarTableBody').innerHTML = events.map(e => `
-                <tr class="hover:bg-dark-hover transition">
-                    <td class="p-3 text-slate-400">${e.time}</td>
-                    <td class="p-3 font-bold text-white">${e.curr}</td>
-                    <td class="p-3 text-slate-200">${e.event}</td>
-                    <td class="p-3"><span class="${e.impact === 'HIGH' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'} border text-[10px] px-2 py-0.5 rounded font-bold">${e.impact}</span></td>
-                    <td class="p-3 text-slate-300">${e.forecast}</td>
-                    <td class="p-3 text-slate-400">${e.prev}</td>
-                    <td class="p-3 font-bold ${e.bias.includes('Bullish') ? 'text-emerald-400' : 'text-amber-400'}">${e.bias}</td>
-                </tr>
-            `).join('');
-        }
-
-        function renderTradeLog() {
-            const trades = [
-                { time: '10:14:22', symbol: 'BTC/USD', side: 'BUY', entry: '82,100.00', exit: '82,650.00', pnl: '+$550.00' },
-                { time: '08:45:10', symbol: 'XAU/USD', side: 'SELL', entry: '2,740.10', exit: '2,732.50', pnl: '+$295.50' }
-            ];
-
-            document.getElementById('tradeLogTable').innerHTML = trades.map(t => `
-                <tr>
-                    <td class="p-2 text-slate-400">${t.time}</td>
-                    <td class="p-2 text-white font-bold">${t.symbol}</td>
-                    <td class="p-2 ${t.side === 'BUY' ? 'text-emerald-400' : 'text-red-400'} font-bold">${t.side}</td>
-                    <td class="p-2">${t.entry}</td>
-                    <td class="p-2">${t.exit}</td>
-                    <td class="p-2 text-emerald-400 font-bold">${t.pnl}</td>
-                </tr>
-            `).join('');
-        }
-
-        function placeManualTrade(side) {
-            const sym = document.getElementById('botOrderSymbol').value;
-            const now = new Date().toLocaleTimeString();
-            const newRow = `
-                <tr>
-                    <td class="p-2 text-slate-400">${now}</td>
-                    <td class="p-2 text-white font-bold">${sym}</td>
-                    <td class="p-2 ${side === 'BUY' ? 'text-emerald-400' : 'text-red-400'} font-bold">${side}</td>
-                    <td class="p-2">Market Price</td>
-                    <td class="p-2">Open</td>
-                    <td class="p-2 text-cyan-400 font-bold">+$0.00 (Live)</td>
-                </tr>
-            `;
-            document.getElementById('tradeLogTable').innerHTML = newRow + document.getElementById('tradeLogTable').innerHTML;
-        }
-
-        function toggleBotState() {
-            botActive = !botActive;
-            const btn = document.getElementById('btnBotToggle');
-            if (botActive) {
-                btn.className = "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded text-xs font-bold flex items-center space-x-2";
-                document.getElementById('botStateText').innerText = "RUNNING AUTO SCAN";
-            } else {
-                btn.className = "bg-red-500/20 text-red-400 border border-red-500/30 px-3 py-1 rounded text-xs font-bold flex items-center space-x-2";
-                document.getElementById('botStateText').innerText = "BOT PAUSED";
-            }
-        }
-
-        function startTimer() {
-            let seconds = 6130;
-            setInterval(() => {
-                seconds--;
-                const h = Math.floor(seconds / 3600);
-                const m = Math.floor((seconds % 3600) / 60);
-                const s = seconds % 60;
-                document.getElementById('newsTimer').innerText = `${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
-            }, 1000);
-        }
-    </script>
-</body>
-</html>
+/* ---------- render ---------- */
+function render() {
+  const s = C.symbols[cur], g = SIG[s.name], p = S[s.name].at(-1).c, d = s.dp;
+  const lk = newsLock(); $("#lock").style.display = lk ? "block" : "none"; if (lk) $("#lock").textContent = "News lock: " + lk.name + " is close. The bot will not open new trades.";
+  $("#sig").innerHTML = `<div class="row"><span class="mu">Demo price</span><span class="num">${f(p, d)}</span></div>` + (g && g.dir ?
+    `<div class="big ${g.dir === "BUY" ? "up" : "dn"}">${g.dir === "BUY" ? "Buy" : "Sell"} <span class="pill ${g.dir === "BUY" ? "b" : "s"}">${g.score}/5 confluence</span></div>
+     <div class="row"><span>Entry</span><b class="num">${f(g.entry, d)}</b></div><div class="row"><span>Stop loss</span><b class="num dn">${f(g.sl, d)}</b></div>
+     <div class="row"><span>Take profit 1 (2R)</span><b class="num up">${f(g.tp1, d)}</b></div><div class="row"><span>Take profit 2 (3R)</span><b class="num up">${f(g.tp2, d)}</b></div>
+     <div class="mu" style="margin-top:8px">${g.notes.join("<br>")}</div>` : `<div class="mu">${g ? g.notes.join("<br>") : "Waiting for the first candle close."}</div>`);
+  const open = trades.reduce((a, t) => a + (t.pl || 0), 0), pc = x => (x >= 0 ? "up" : "dn");
+  $("#acc").innerHTML = `<div class="row"><span>Balance</span><b class="num">${f(bal, 2)}</b></div><div class="row"><span>Floating P/L</span><b class="num ${pc(open)}">${f(open, 2)}</b></div><div class="row"><span>Today</span><b class="num ${pc(dayLoss)}">${f(dayLoss, 2)}</b></div><div class="row"><span>Win rate</span><b>${closed.length ? Math.round(closed.filter(x => x.pl > 0).length / closed.length * 100) + "%" : "-"}</b></div>`;
+  $("#open").innerHTML = trades.map(t => { const q = C.symbols.find(x => x.name === t.sym).dp; return `<tr><td>${t.sym}</td><td class="${t.dir === "BUY" ? "up" : "dn"}">${t.dir}</td><td class="num">${f(t.entry, q)}</td><td class="num">${f(t.sl, q)}</td><td class="num">${f(t.tp1, q)}</td><td class="num">${f(t.tp2, q)}</td><td>${t.st}</td><td class="num ${pc(t.pl || 0)}">${f(t.pl || 0, 2)}</td></tr>`; }).join("") || `<tr><td colspan="8" class="mu">No trades yet. Switch to Auto (paper) and wait for a signal.</td></tr>`;
+  $("#hist").innerHTML = closed.slice(0, 15).map(t => `<tr><td>${t.sym}</td><td class="${t.dir === "BUY" ? "up" : "dn"}">${t.dir}</td><td>${t.why}</td><td class="num ${pc(t.pl)}">${f(t.pl, 2)}</td></tr>`).join("") || `<tr><td colspan="4" class="mu">Closed trades will show here.</td></tr>`;
+  const nm = newsMood > .15 ? ["Bullish", "up"] : newsMood < -.15 ? ["Bearish", "dn"] : ["Neutral", "mu"];
+  $("#news").innerHTML = `<span class="${nm[1]}" style="font-size:20px;font-weight:600">${nm[0]}</span> <span class="num mu">(${f(newsMood, 2)})</span>`;
+  const nx = events.find(e => e.t > Date.now() && e.impact === "High"), ms = nx ? nx.t - Date.now() : 0;
+  $("#cd").innerHTML = nx ? `Next high impact: <b>${nx.name}</b> in <b class="num">${Math.floor(ms / 36e5)}h ${Math.floor(ms % 36e5 / 6e4)}m ${Math.floor(ms % 6e4 / 1e3)}s</b>` : "No high impact event ahead.";
+  $("#cal").innerHTML = `<div class="wrap"><table><tbody>` + events.filter(e => calF === "all" || e.impact === calF).slice(0, 10).map(e => `<tr><td class="num mu">${new Date(e.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td><td>${e.cur}</td><td>${e.name}</td><td class="${e.impact === "High" ? "dn" : "mu"}">${e.impact}</td><td class="num mu">F ${e.fc ?? "-"} / A ${e.ac ?? "-"}</td></tr>`).join("") + `</tbody></table></div>`;
+}
+function setMode(m) { mode = m; const e = $("#mode"); e.dataset.m = m; e.querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.m === m)); }
+$("#mode").onclick = e => { const b = e.target.closest("button"); if (b) setMode(+b.dataset.m); };
+$("#flt").onclick = e => { const b = e.target.closest("button"); if (!b) return; calF = b.dataset.f; $("#flt").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); render(); };
+function chart() {
+  $("#tv").innerHTML = ""; const mk = () => new TradingView.widget({ autosize: true, symbol: C.symbols[cur].tv, interval: "15", theme: "dark", style: "1", locale: "en", hide_side_toolbar: false, container_id: "tv" });
+  if (window.TradingView) mk(); else { const s = document.createElement("script"); s.src = "https://s3.tradingview.com/tv.js"; s.onload = mk; document.head.appendChild(s); }
+}
+async function start(u) {
+  $("#login").style.display = "none"; $("#app").style.display = "block"; $("#me").textContent = u;
+  $("#tabs").innerHTML = C.symbols.map((s, i) => `<button class="tab ${i ? "" : "on"}" data-i="${i}">${s.name}</button>`).join("");
+  $("#tabs").onclick = e => { const b = e.target.closest("button"); if (!b) return; cur = +b.dataset.i; $("#tabs").querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === b)); chart(); render(); };
+  for (const s of C.symbols) { const p = await livePrice(s); if (p) s.base = p; S[s.name] = gen(s.base); }
+  await Promise.all([loadNews(), loadCal()]);
+  C.symbols.forEach(s => recalc(s.name)); chart(); render(); setInterval(tick, 1500);
+}
+if (sessionStorage.s) start(sessionStorage.s);
+</script>
+</body></html>
