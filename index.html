@@ -260,7 +260,7 @@ $("#mode").onclick = e => { const b = e.target.closest("button"); if (b) setMode
 $("#flt").onclick = e => { const b = e.target.closest("button"); if (!b) return; calF = b.dataset.f; $("#flt").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); render(); };
 function chart() {
   $("#tv").innerHTML = ""; const mk = () => new TradingView.widget({ autosize: true, symbol: C.symbols[cur].tv, interval: "15", theme: "dark", style: "1", locale: "en", hide_side_toolbar: false, container_id: "tv" });
-  if (window.TradingView) mk(); else { const s = document.createElement("script"); s.src = "https://s3.tradingview.com/tv.js"; s.onload = mk; document.head.appendChild(s); }
+  if (window.TradingView) mk(); else { const s = document.createElement("script"); s.src = "https://s3.tradingview.com/tv.js"; s.onload = mk; s.onerror = () => { $("#tv").innerHTML = '<div class="mu" style="padding:20px">TradingView chart could not load here. Deploy the file on Vercel or GitHub Pages and open it there.</div>'; }; document.head.appendChild(s); }
 }
 async function start(u) {
   $("#login").style.display = "none"; $("#app").style.display = "block"; $("#me").textContent = u;
